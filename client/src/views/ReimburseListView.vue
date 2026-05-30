@@ -5,7 +5,8 @@ const {
   searchForm,
   currentPage,
   pageSize,
-  filteredList,
+  listTotal,
+  listLoading,
   pagedList,
   applySearch,
   clearSearch,
@@ -14,6 +15,7 @@ const {
   notifyAction,
   formatAmount,
   handleSizeChange,
+  handleCurrentChange,
   businessTypeTreeOptions,
   reimCompanyOptions,
   reimDepartmentOptions,
@@ -91,7 +93,7 @@ const {
         </div>
       </el-form>
 
-      <el-table :data="pagedList" border class="reimburse-table" empty-text="暂无数据">
+      <el-table v-loading="listLoading" :data="pagedList" border class="reimburse-table" empty-text="暂无数据">
         <el-table-column type="index" width="54" align="center">
           <template #header>
             <el-icon class="table-tool-icon"><Operation /></el-icon>
@@ -175,10 +177,11 @@ const {
           v-model:current-page="currentPage"
           :page-size="pageSize"
           :page-sizes="[10, 20, 50]"
-          :total="filteredList.length"
+          :total="listTotal"
           background
           layout="total, sizes, prev, pager, next, jumper"
           @size-change="handleSizeChange"
+          @current-change="handleCurrentChange"
         />
       </div>
     </section>

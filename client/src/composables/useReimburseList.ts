@@ -1,19 +1,23 @@
-import { computed, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import { useRouter } from 'vue-router';
 
-import {
-  businessTypeTreeOptions,
-  reimCompanyOptions,
-  reimDepartmentOptions,
-  reimburserOptions,
-} from '@/mock';
 import { useReimburseStore } from '@/stores/reimburseStore';
 import type { ReimburseListItem, ReimburseQuery } from '@/types/reimburse';
 
 export const useReimburseList = () => {
 const router = useRouter();
-const { reimburseList } = useReimburseStore();
+const {
+  reimburseList,
+  listTotal,
+  listLoading,
+  businessTypeTreeOptions,
+  reimCompanyOptions,
+  reimDepartmentOptions,
+  reimburserOptions,
+  loadMasterData,
+  fetchReimburseList,
+} = useReimburseStore();
 
 const createEmptyQuery = (): ReimburseQuery => ({
   reimbursementNo: '',
@@ -30,39 +34,25 @@ const appliedQuery = reactive<ReimburseQuery>(createEmptyQuery());
 const currentPage = ref(1);
 const pageSize = ref(10);
 
-const matchesText = (source: string, keyword: string): boolean =>
-  !keyword || source.toLowerCase().includes(keyword.trim().toLowerCase());
+const filteredList = computed(() => reimburseList.value);
 
-const filteredList = computed(() =>
-  reimburseList.value.filter((item) => {
-    const query = appliedQuery;
+const pagedList = computed(() => reimburseList.value);
 
-    return (
-      matchesText(item.reimbursementNo, query.reimbursementNo) &&
-      matchesText(item.title, query.title) &&
-      matchesText(item.reason, query.reason) &&
-      (!query.companyId || item.company.reimCompanyId === query.companyId) &&
-      (!query.departmentId || item.department.reimDepartmentId === query.departmentId) &&
-      (!query.reimburserId || item.reimburser.reimburserId === query.reimburserId) &&
-      (!query.businessTypeId || item.businessType.businessTypeId === query.businessTypeId)
-    );
-  }),
-);
-
-const pagedList = computed(() => {
-  const start = (currentPage.value - 1) * pageSize.value;
-  return filteredList.value.slice(start, start + pageSize.value);
-});
-
-const applySearch = () => {
-  Object.assign(appliedQuery, searchForm);
-  currentPage.value = 1;
+const loadList = async () => {
+  await fetchReimburseList(appliedQuery, currentPage.value, pageSize.value);
 };
 
-const clearSearch = () => {
+const applySearch = async () => {
+  Object.assign(appliedQuery, searchForm);
+  currentPage.value = 1;
+  await loadList();
+};
+
+const clearSearch = async () => {
   Object.assign(searchForm, createEmptyQuery());
   Object.assign(appliedQuery, createEmptyQuery());
   currentPage.value = 1;
+  await loadList();
 };
 
 const goDetail = (row: ReimburseListItem) => {
@@ -73,22 +63,34 @@ const createDocument = () => {
   router.push('/reimburse/new');
 };
 
-const notifyAction = (label: string, row: ReimburseListItem) => {
+const notifyAction = async (label: string, row: ReimburseListItem) => {
   ElMessage.info(`${label}：${row.reimbursementNo}`);
 };
 
 const formatAmount = (amount: number): string => amount.toFixed(2);
 
-const handleSizeChange = (size: number) => {
+const handleSizeChange = async (size: number) => {
   pageSize.value = size;
   currentPage.value = 1;
+  await loadList();
 };
+
+const handleCurrentChange = async () => {
+  await loadList();
+};
+
+onMounted(async () => {
+  await loadMasterData();
+  await loadList();
+});
 
 return {
   searchForm,
   appliedQuery,
   currentPage,
   pageSize,
+  listTotal,
+  listLoading,
   filteredList,
   pagedList,
   applySearch,
@@ -98,6 +100,7 @@ return {
   notifyAction,
   formatAmount,
   handleSizeChange,
+  handleCurrentChange,
   businessTypeTreeOptions,
   reimCompanyOptions,
   reimDepartmentOptions,

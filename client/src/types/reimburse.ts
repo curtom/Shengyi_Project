@@ -98,6 +98,9 @@ export interface AllowanceRecord {
   allowanceCityNo: string;
   applicationAmount: number;
   allowanceAmount: number;
+  mealAllowance?: number;
+  transportationAllowance?: number;
+  phoneAllowance?: number;
   calendar: AllowanceCalendarDay[];
 }
 

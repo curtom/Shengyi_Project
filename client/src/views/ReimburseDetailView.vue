@@ -87,7 +87,7 @@ const {
               <el-input v-model="detail.title" maxlength="500" />
             </el-form-item>
             <el-form-item label="报销人">
-              <el-select :model-value="detail.reimburserId" placeholder="请选择">
+              <el-select v-model="detail.reimburserId" placeholder="请选择">
                 <el-option
                   v-for="item in reimburserOptions"
                   :key="item.reimburserId"
@@ -97,7 +97,7 @@ const {
               </el-select>
             </el-form-item>
             <el-form-item label="报销部门">
-              <el-select :model-value="detail.departmentId" placeholder="请选择">
+              <el-select v-model="detail.departmentId" placeholder="请选择">
                 <el-option
                   v-for="item in reimDepartmentOptions"
                   :key="item.reimDepartmentId"
@@ -107,7 +107,7 @@ const {
               </el-select>
             </el-form-item>
             <el-form-item label="费用归属公司" class="required-label">
-              <el-select :model-value="detail.companyId" placeholder="请选择">
+              <el-select v-model="detail.companyId" placeholder="请选择">
                 <el-option
                   v-for="item in reimCompanyOptions"
                   :key="item.reimCompanyId"
@@ -118,7 +118,7 @@ const {
             </el-form-item>
             <el-form-item label="业务类型" class="required-label">
               <el-tree-select
-                :model-value="detail.businessTypeId"
+                v-model="detail.businessTypeId"
                 :data="businessTypeTreeOptions"
                 check-strictly
                 :render-after-expand="false"
