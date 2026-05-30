@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 
-const ReimburseList = () => import('@/pages/ReimburseList.vue');
-const ReimburseDetail = () => import('@/pages/ReimburseDetail.vue');
+const ReimburseList = () => import('@/views/ReimburseListView.vue');
+const ReimburseDetail = () => import('@/views/ReimburseDetailView.vue');
 
 const router = createRouter({
   history: createWebHistory(),

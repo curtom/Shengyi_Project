@@ -29,7 +29,10 @@ const getDateRange = (startDate: string, endDate: string): string[] => {
   const end = new Date(`${endDate}T00:00:00`);
 
   while (current <= end) {
-    result.push(current.toISOString().slice(0, 10));
+    const year = current.getFullYear();
+    const month = `${current.getMonth() + 1}`.padStart(2, '0');
+    const day = `${current.getDate()}`.padStart(2, '0');
+    result.push(`${year}-${month}-${day}`);
     current.setDate(current.getDate() + 1);
   }
 
@@ -84,7 +87,7 @@ export const createAllowanceCalendar = (
     };
   });
 
-const createAllowanceFromTrip = (trip: TripRecord): AllowanceRecord => {
+export const createAllowanceFromTrip = (trip: TripRecord): AllowanceRecord => {
   const startCity = cityOptions.find((item) => item.cityNo === trip.departureCityNo);
   const endCity = cityOptions.find((item) => item.cityNo === trip.arrivalCityNo);
   const calendar = createAllowanceCalendar(trip.id, trip.startDate, trip.endDate, trip.arrivalCityNo);
