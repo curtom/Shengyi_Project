@@ -126,7 +126,9 @@ public class ReimbursementServiceImpl implements ReimbursementService {
             throw new BusinessException(ErrorCode.PARAM_INVALID, "请至少补录一条行程");
         }
         validateItineraries(dto.getTrips(), true);
-        dto.setAllowances(subsidyGenerator.generateFromItineraries(dto.getTrips()));
+        if (CollectionUtils.isEmpty(dto.getAllowances())) {
+            dto.setAllowances(subsidyGenerator.generateFromItineraries(dto.getTrips()));
+        }
         applyCalendarOverrides(dto);
         recalcTotals(dto);
         validateAllocation(dto);
@@ -291,6 +293,7 @@ public class ReimbursementServiceImpl implements ReimbursementService {
             main.setCreationTime(LocalDateTime.now().format(DT));
             main.setDocDate(LocalDate.now().format(D));
         }
+        resolveNames(dto);
         copyMain(dto, main, String.valueOf(status));
         if (isNew) {
             mainMapper.insert(main);
@@ -536,6 +539,48 @@ public class ReimbursementServiceImpl implements ReimbursementService {
         }
     }
 
+    @SuppressWarnings("unchecked")
+    private void resolveNames(ReimbursementDTO dto) {
+        Map<String, Object> master = masterData();
+
+        if (StringUtils.hasText(dto.getCompanyId())) {
+            for (Map<String, Object> opt : (List<Map<String, Object>>) master.get("reimCompanyOptions")) {
+                if (dto.getCompanyId().equals(opt.get("reimCompanyId"))) {
+                    dto.setReimCompanyNo((String) opt.get("reimCompanyNo"));
+                    dto.setReimCompanyName((String) opt.get("reimCompanyName"));
+                    break;
+                }
+            }
+        }
+        if (StringUtils.hasText(dto.getDepartmentId())) {
+            for (Map<String, Object> opt : (List<Map<String, Object>>) master.get("reimDepartmentOptions")) {
+                if (dto.getDepartmentId().equals(opt.get("reimDepartmentId"))) {
+                    dto.setReimDepartmentNo((String) opt.get("reimDepartmentNo"));
+                    dto.setReimDepartmentName((String) opt.get("reimDepartmentName"));
+                    break;
+                }
+            }
+        }
+        if (StringUtils.hasText(dto.getReimburserId())) {
+            for (Map<String, Object> opt : (List<Map<String, Object>>) master.get("reimburserOptions")) {
+                if (dto.getReimburserId().equals(opt.get("reimburserId"))) {
+                    dto.setReimburserNo((String) opt.get("reimburserNo"));
+                    dto.setReimburserName((String) opt.get("reimburserName"));
+                    break;
+                }
+            }
+        }
+        if (StringUtils.hasText(dto.getBusinessTypeId())) {
+            for (Map<String, Object> opt : (List<Map<String, Object>>) master.get("businessTypeOptions")) {
+                if (dto.getBusinessTypeId().equals(opt.get("businessTypeId"))) {
+                    dto.setBusinessTypeNo((String) opt.get("businessTypeNo"));
+                    dto.setBusinessTypeName((String) opt.get("businessTypeName"));
+                    break;
+                }
+            }
+        }
+    }
+
     private void copyMain(ReimbursementDTO dto, ReimbursementMainEntity main, String status) {
         main.setReimbursementTitle(dto.getTitle());
         main.setBusinessTripReason(dto.getReason());
@@ -586,6 +631,7 @@ public class ReimbursementServiceImpl implements ReimbursementService {
         d.setBusinessTypeNo(e.getBusinessTypeNo());
         d.setBusinessTypeName(e.getBusinessTypeName());
         d.setSubsidyTotal(e.getSubsidyTotal());
+        d.setSubmitDate(e.getCreationTime());
         return d;
     }
 

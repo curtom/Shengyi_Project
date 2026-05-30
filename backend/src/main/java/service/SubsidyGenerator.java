@@ -57,7 +57,7 @@ public class SubsidyGenerator {
                 SubsidyCalendarDTO cal = new SubsidyCalendarDTO();
                 cal.setId(it.getId() + "-" + d.format(FMT));
                 cal.setDate(d.format(FMT));
-                cal.setWeekday(WEEKDAYS[d.getDayOfWeek().getValue()]);
+                cal.setWeekday(WEEKDAYS[d.getDayOfWeek().getValue() % 7]);
                 cal.setAllowanceCityNo(it.getArrivalCityNo());
 
                 Map<String, SubsidyCalendarDTO.AllowanceAmountCell> cells = new HashMap<>();
