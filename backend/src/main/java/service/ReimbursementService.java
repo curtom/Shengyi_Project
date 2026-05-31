@@ -20,6 +20,12 @@ public interface ReimbursementService {
 
     void voidDoc(String id);
 
+    void deleteDoc(String id);
+
+    void pushDoc(String id);
+
+    void withdrawDoc(String id);
+
     List<SubsidyCalendarDTO> previewSubsidyCalendar(List<ItineraryDTO> itineraries);
 
     Map<String, Object> masterData();

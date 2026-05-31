@@ -47,6 +47,24 @@ public class ReimbursementController {
         return Result.ok();
     }
 
+    @PostMapping("/delete/{id}")
+    public Result<Void> deleteDoc(@PathVariable String id) {
+        reimbursementService.deleteDoc(id);
+        return Result.ok();
+    }
+
+    @PostMapping("/push/{id}")
+    public Result<Void> pushDoc(@PathVariable String id) {
+        reimbursementService.pushDoc(id);
+        return Result.ok();
+    }
+
+    @PostMapping("/withdraw/{id}")
+    public Result<Void> withdrawDoc(@PathVariable String id) {
+        reimbursementService.withdrawDoc(id);
+        return Result.ok();
+    }
+
     @PostMapping("/subsidy/preview")
     public Result<List<SubsidyCalendarDTO>> previewSubsidy(@RequestBody List<ItineraryDTO> itineraries) {
         return Result.ok(reimbursementService.previewSubsidyCalendar(itineraries));

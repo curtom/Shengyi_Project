@@ -96,6 +96,13 @@ public class ReimbursementServiceImpl implements ReimbursementService {
             List<SubsidyCalendarEntity> cals = calendarMapper.selectList(
                     new LambdaQueryWrapper<SubsidyCalendarEntity>().eq(SubsidyCalendarEntity::getSubsidyId, s.getId()));
             sd.setCalendar(cals.stream().map(this::toCalendarDto).collect(Collectors.toList()));
+            dto.getTrips().stream()
+                    .filter(trip -> trip.getId().equals(sd.getTripId()))
+                    .findFirst()
+                    .ifPresent(trip -> sd.setRouteText(resolveRouteText(trip.getDepartureCityNo(), trip.getArrivalCityNo())));
+            if (!StringUtils.hasText(sd.getRouteText())) {
+                sd.setRouteText(resolveRouteText(s.getDepartureCityNo(), s.getArrivingCityNo()));
+            }
             allowanceDtos.add(sd);
         }
         dto.setAllowances(allowanceDtos);
@@ -112,11 +119,12 @@ public class ReimbursementServiceImpl implements ReimbursementService {
     @Transactional(rollbackFor = Exception.class)
     public String saveDraft(ReimbursementDTO dto) {
         validateItineraries(dto.getTrips(), false);
-        if (!CollectionUtils.isEmpty(dto.getTrips())) {
+        if (!CollectionUtils.isEmpty(dto.getTrips()) && CollectionUtils.isEmpty(dto.getAllowances())) {
             dto.setAllowances(subsidyGenerator.generateFromItineraries(dto.getTrips()));
         }
         recalcTotals(dto);
-        return persist(dto, 0);
+        int statusToSave = (dto.getDocumentStatusCode() != null && dto.getDocumentStatusCode() == 1) ? 1 : 0;
+        return persist(dto, statusToSave);
     }
 
     @Override
@@ -144,6 +152,45 @@ public class ReimbursementServiceImpl implements ReimbursementService {
         }
         main.setDocStatus("2");
         mainMapper.updateById(main);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void pushDoc(String id) {
+        ReimbursementMainEntity main = mainMapper.selectById(id);
+        if (main == null) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, "报销单不存在");
+        }
+        if (!"1".equals(main.getDocStatus())) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, "仅已完成状态的报销单可执行手工推送");
+        }
+        main.setDocStatus("3");
+        mainMapper.updateById(main);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void withdrawDoc(String id) {
+        ReimbursementMainEntity main = mainMapper.selectById(id);
+        if (main == null) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, "报销单不存在");
+        }
+        if (!"2".equals(main.getDocStatus())) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, "仅已作废状态的报销单可撤回为草稿");
+        }
+        main.setDocStatus("0");
+        mainMapper.updateById(main);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteDoc(String id) {
+        ReimbursementMainEntity main = mainMapper.selectById(id);
+        if (main == null) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, "报销单不存在");
+        }
+        deleteChildren(id);
+        mainMapper.deleteById(id);
     }
 
     @Override
@@ -280,6 +327,28 @@ public class ReimbursementServiceImpl implements ReimbursementService {
         return m;
     }
 
+    @SuppressWarnings("unchecked")
+    private String resolveCityName(String cityNo) {
+        if (!StringUtils.hasText(cityNo)) {
+            return "";
+        }
+        for (Map<String, Object> city : (List<Map<String, Object>>) masterData().get("cityOptions")) {
+            if (cityNo.equals(city.get("cityNo"))) {
+                return (String) city.get("cityName");
+            }
+        }
+        return "";
+    }
+
+    private String resolveRouteText(String departureCityNo, String arrivalCityNo) {
+        String departureCity = resolveCityName(departureCityNo);
+        String arrivalCity = resolveCityName(arrivalCityNo);
+        if (!StringUtils.hasText(departureCity) && !StringUtils.hasText(arrivalCity)) {
+            return "";
+        }
+        return departureCity + "-" + arrivalCity;
+    }
+
     private String persist(ReimbursementDTO dto, int status) {
         boolean isNew = !StringUtils.hasText(dto.getId());
         ReimbursementMainEntity main = isNew ? new ReimbursementMainEntity() : mainMapper.selectById(dto.getId());
@@ -352,10 +421,26 @@ public class ReimbursementServiceImpl implements ReimbursementService {
             se.setDepartureDate(sub.getStartDate());
             se.setArrivalDate(sub.getEndDate());
             se.setSubsidyDays(sub.getDays());
-            se.setDepartureCity("");
-            se.setDepartureCityNo(sub.getAllowanceCityNo());
-            se.setArrivingCity("");
-            se.setArrivingCityNo(sub.getAllowanceCityNo());
+
+            ItineraryDTO matchedTrip = null;
+            if (StringUtils.hasText(sub.getTripId()) && !CollectionUtils.isEmpty(dto.getTrips())) {
+                matchedTrip = dto.getTrips().stream()
+                        .filter(trip -> sub.getTripId().equals(trip.getId()))
+                        .findFirst()
+                        .orElse(null);
+            }
+            if (matchedTrip != null) {
+                se.setDepartureCityNo(matchedTrip.getDepartureCityNo());
+                se.setArrivingCityNo(matchedTrip.getArrivalCityNo());
+                se.setDepartureCity(resolveCityName(matchedTrip.getDepartureCityNo()));
+                se.setArrivingCity(resolveCityName(matchedTrip.getArrivalCityNo()));
+            } else {
+                se.setDepartureCityNo(sub.getAllowanceCityNo());
+                se.setArrivingCityNo(sub.getAllowanceCityNo());
+                se.setDepartureCity(resolveCityName(sub.getAllowanceCityNo()));
+                se.setArrivingCity(resolveCityName(sub.getAllowanceCityNo()));
+            }
+
             se.setApplicationAmount(sub.getApplicationAmount());
             se.setSubsidyAmount(sub.getAllowanceAmount());
             se.setMealAllowance(sub.getMealAllowance());
@@ -688,6 +773,7 @@ public class ReimbursementServiceImpl implements ReimbursementService {
         d.setEndDate(e.getArrivalDate());
         d.setDays(e.getSubsidyDays());
         d.setAllowanceCityNo(e.getArrivingCityNo());
+        d.setRouteText(resolveRouteText(e.getDepartureCityNo(), e.getArrivingCityNo()));
         d.setApplicationAmount(e.getApplicationAmount());
         d.setAllowanceAmount(e.getSubsidyAmount());
         d.setMealAllowance(e.getMealAllowance());
