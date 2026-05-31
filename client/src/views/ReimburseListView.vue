@@ -12,7 +12,8 @@ const {
   clearSearch,
   goDetail,
   createDocument,
-  notifyAction,
+  deleteDocument,
+  handleDropdownCommand,
   formatAmount,
   handleSizeChange,
   handleCurrentChange,
@@ -80,12 +81,12 @@ const {
             />
           </el-form-item>
           <div class="query-actions">
-            <el-button type="primary" plain @click="createDocument">
+            <el-button class="query-btn-outline" @click="createDocument">
               <el-icon><Plus /></el-icon>
               新增
             </el-button>
-            <el-button plain @click="clearSearch">清除</el-button>
-            <el-button type="primary" @click="applySearch">
+            <el-button class="query-btn-outline" @click="clearSearch">清除</el-button>
+            <el-button class="query-btn-solid" @click="applySearch">
               <el-icon><Search /></el-icon>
               搜索
             </el-button>
@@ -103,22 +104,27 @@ const {
           <template #default="{ row }">
             <div class="operation-cell">
               <el-tooltip content="删除" placement="top">
-                <el-button link class="muted-icon" @click="notifyAction('删除', row)">
+                <el-button link @click="deleteDocument(row)">
                   <el-icon><DocumentRemove /></el-icon>
                 </el-button>
               </el-tooltip>
               <el-tooltip content="编辑" placement="top">
-                <el-button link :class="{ 'muted-icon': row.documentStatusCode !== 0 }" @click="goDetail(row)">
+                <el-button
+                  link
+                  :class="{ 'muted-icon': row.documentStatusCode !== 0 && row.documentStatusCode !== 1 }"
+                  :disabled="row.documentStatusCode !== 0 && row.documentStatusCode !== 1"
+                  @click="goDetail(row)"
+                >
                   <el-icon><EditPen /></el-icon>
                 </el-button>
               </el-tooltip>
-              <el-dropdown trigger="hover" placement="bottom-start" @command="(command: string) => notifyAction(command, row)">
+              <el-dropdown trigger="hover" placement="bottom-start" @command="(command: string) => handleDropdownCommand(command, row)">
                 <el-button link>
                   <el-icon><MoreFilled /></el-icon>
                 </el-button>
                 <template #dropdown>
                   <el-dropdown-menu>
-                    <el-dropdown-item command="删除">删除</el-dropdown-item>
+                    <el-dropdown-item command="作废">作废</el-dropdown-item>
                     <el-dropdown-item command="手工推送">手工推送</el-dropdown-item>
                     <el-dropdown-item command="复制">复制</el-dropdown-item>
                   </el-dropdown-menu>
@@ -224,6 +230,40 @@ const {
   justify-content: flex-end;
   gap: 10px;
   min-width: 0;
+}
+
+.query-actions :deep(.el-button) {
+  min-width: 72px;
+  height: 32px;
+  padding: 0 16px;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.query-actions :deep(.el-button.query-btn-outline) {
+  color: #2f66ff;
+  border: 1px solid #2f66ff;
+  background: #ffffff;
+}
+
+.query-actions :deep(.el-button.query-btn-outline:hover),
+.query-actions :deep(.el-button.query-btn-outline:focus) {
+  color: #2f66ff;
+  border-color: #2f66ff;
+  background: #eef3ff;
+}
+
+.query-actions :deep(.el-button.query-btn-solid) {
+  color: #ffffff;
+  border: 1px solid #2f66ff;
+  background: #2f66ff;
+}
+
+.query-actions :deep(.el-button.query-btn-solid:hover),
+.query-actions :deep(.el-button.query-btn-solid:focus) {
+  color: #ffffff;
+  border-color: #2452cc;
+  background: #2452cc;
 }
 
 .reimburse-table {

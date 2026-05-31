@@ -1,4 +1,4 @@
-export type DocumentStatusCode = 0 | 1 | 2;
+export type DocumentStatusCode = 0 | 1 | 2 | 3;
 
 export interface ReimCompanyOption {
   reimCompanyId: string;

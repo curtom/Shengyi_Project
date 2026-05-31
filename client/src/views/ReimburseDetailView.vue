@@ -3,6 +3,8 @@ import { useReimburseDetail } from '@/composables/useReimburseDetail';
 
 const {
   detail,
+  saveStatus,
+  isReadOnly,
   expanded,
   tripDialog,
   tripFormRef,
@@ -55,6 +57,7 @@ const {
   saveTrip,
   deleteTrip,
   closeDocument,
+  withdrawDocument,
   submitDocument,
   businessTypeTreeOptions,
   cityOptions,
@@ -71,7 +74,12 @@ const {
     <header class="document-header">
       <div class="document-header-inner">
         <h1>差旅费用报销单</h1>
-        <div class="submit-date">提单日期&nbsp;&nbsp;{{ detail.submitDate }}</div>
+        <div class="header-meta">
+          <span v-if="saveStatus === 'saving'" class="save-status saving">保存中...</span>
+          <span v-else-if="saveStatus === 'saved'" class="save-status saved">已保存</span>
+          <span v-else-if="saveStatus === 'error'" class="save-status error">保存失败</span>
+          <div class="submit-date">提单日期&nbsp;&nbsp;{{ detail.submitDate }}</div>
+        </div>
       </div>
     </header>
 
@@ -82,12 +90,12 @@ const {
           <el-icon><ArrowUp v-if="expanded.basic" /><ArrowDown v-else /></el-icon>
         </button>
         <div v-show="expanded.basic" class="section-content basic-content">
-          <el-form label-width="92px" class="basic-form">
+          <el-form label-width="108px" class="basic-form">
             <el-form-item label="报销标题">
-              <el-input v-model="detail.title" maxlength="500" />
+              <el-input v-model="detail.title" maxlength="500" :disabled="isReadOnly" />
             </el-form-item>
             <el-form-item label="报销人">
-              <el-select v-model="detail.reimburserId" placeholder="请选择">
+              <el-select v-model="detail.reimburserId" placeholder="请选择" :disabled="isReadOnly">
                 <el-option
                   v-for="item in reimburserOptions"
                   :key="item.reimburserId"
@@ -97,7 +105,7 @@ const {
               </el-select>
             </el-form-item>
             <el-form-item label="报销部门">
-              <el-select v-model="detail.departmentId" placeholder="请选择">
+              <el-select v-model="detail.departmentId" placeholder="请选择" :disabled="isReadOnly">
                 <el-option
                   v-for="item in reimDepartmentOptions"
                   :key="item.reimDepartmentId"
@@ -107,7 +115,7 @@ const {
               </el-select>
             </el-form-item>
             <el-form-item label="费用归属公司" class="required-label">
-              <el-select v-model="detail.companyId" placeholder="请选择">
+              <el-select v-model="detail.companyId" placeholder="请选择" :disabled="isReadOnly">
                 <el-option
                   v-for="item in reimCompanyOptions"
                   :key="item.reimCompanyId"
@@ -122,10 +130,11 @@ const {
                 :data="businessTypeTreeOptions"
                 check-strictly
                 :render-after-expand="false"
+                :disabled="isReadOnly"
               />
             </el-form-item>
             <el-form-item label="出差事由" class="reason-field">
-              <el-input v-model="detail.reason" maxlength="500" placeholder="请输入" />
+              <el-input v-model="detail.reason" maxlength="500" placeholder="请输入" :disabled="isReadOnly" />
             </el-form-item>
           </el-form>
         </div>
@@ -135,7 +144,7 @@ const {
         <button class="section-title" type="button" @click="toggleSection('trip')">
           <span>补录行程</span>
           <span class="section-actions">
-            <el-button link type="primary" @click.stop="openTripDialog('create')">
+            <el-button v-if="!isReadOnly" link type="primary" @click.stop="openTripDialog('create')">
               <el-icon><CirclePlus /></el-icon>
               补录行程
             </el-button>
@@ -149,7 +158,7 @@ const {
             <el-table-column prop="dateText" label="出差日期" min-width="190" />
             <el-table-column prop="routeText" label="行程" min-width="180" />
             <el-table-column prop="description" label="行程说明" min-width="180" />
-            <el-table-column label="操作" width="120" align="center">
+            <el-table-column v-if="!isReadOnly" label="操作" width="120" align="center">
               <template #default="{ row }">
                 <div class="row-actions">
                   <el-tooltip content="删除" placement="top">
@@ -200,7 +209,7 @@ const {
             <el-table-column label="补助金额" width="120" align="right">
               <template #default="{ row }">{{ formatAmount(row.allowanceAmount) }}</template>
             </el-table-column>
-            <el-table-column label="操作" width="90" align="center">
+            <el-table-column v-if="!isReadOnly" label="操作" width="90" align="center">
               <template #default="{ row }">
                 <button class="icon-button" type="button" @click="openAllowanceDialog(row)">
                   <el-icon class="action-icon"><EditPen /></el-icon>
@@ -234,9 +243,12 @@ const {
             <el-table-column label="序号" width="64" align="center">
               <template #default="{ $index }">{{ $index + 1 }}</template>
             </el-table-column>
-            <el-table-column label="费用归属*" min-width="220">
+            <el-table-column min-width="220">
+              <template #header>
+                <span>费用归属<span class="required-mark">*</span></span>
+              </template>
               <template #default="{ row }">
-                <el-select v-model="row.companyId" placeholder="请选择" filterable clearable>
+                <el-select v-model="row.companyId" placeholder="请选择" filterable clearable :disabled="isReadOnly">
                   <el-option
                     v-for="item in reimCompanyOptions"
                     :key="item.reimCompanyId"
@@ -248,7 +260,7 @@ const {
             </el-table-column>
             <el-table-column label="项目" min-width="220">
               <template #default="{ row }">
-                <el-select v-model="row.projectId" placeholder="请选择" filterable clearable>
+                <el-select v-model="row.projectId" placeholder="请选择" filterable clearable :disabled="isReadOnly">
                   <el-option
                     v-for="item in projectOptions"
                     :key="item.projectId"
@@ -262,7 +274,7 @@ const {
               <template #header>
                 <span class="allocation-ratio-header">
                   分摊比例
-                  <el-tooltip content="均摊" placement="top" effect="dark">
+                  <el-tooltip v-if="!isReadOnly" content="均摊" placement="top" effect="dark">
                     <button class="equal-split-button" type="button" @click.stop="splitAllocationsEqually">
                       <el-icon><Refresh /></el-icon>
                     </button>
@@ -273,7 +285,7 @@ const {
               <template #default="{ row, $index }">
                 <el-input-number
                   :model-value="Number((row.ratio * 100).toFixed(2))"
-                  :disabled="$index === 0"
+                  :disabled="$index === 0 || isReadOnly"
                   :min="0"
                   :max="100"
                   :precision="2"
@@ -291,7 +303,7 @@ const {
                 <el-input :model-value="formatAmount(row.amount)" disabled class="amount-input" />
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="100" align="center">
+            <el-table-column v-if="!isReadOnly" label="操作" width="100" align="center">
               <template #default="{ row }">
                 <button class="icon-button" type="button" @click="deleteAllocation(row)">
                   <el-icon class="action-icon"><Delete /></el-icon>
@@ -299,7 +311,7 @@ const {
               </template>
             </el-table-column>
           </el-table>
-          <button class="add-row-button" type="button" @click="addAllocation">
+          <button v-if="!isReadOnly" class="add-row-button" type="button" @click="addAllocation">
             <el-icon><CirclePlus /></el-icon>
             添加一行
           </button>
@@ -315,7 +327,7 @@ const {
         <button class="section-title" type="button" @click="toggleSection('remark')">
           <span>备注信息</span>
           <span class="section-actions">
-            <el-button link type="primary" @click.stop="deleteRemark">
+            <el-button v-if="!isReadOnly" link type="primary" @click.stop="deleteRemark">
               <el-icon><Delete /></el-icon>
               删除备注
             </el-button>
@@ -330,6 +342,7 @@ const {
             :rows="5"
             placeholder="请输入"
             show-word-limit
+            :disabled="isReadOnly"
           />
         </div>
       </section>
@@ -338,7 +351,8 @@ const {
     <footer class="document-footer">
       <div class="document-footer-inner">
         <el-button @click="closeDocument">关闭</el-button>
-        <el-button type="primary" @click="submitDocument">提交</el-button>
+        <el-button v-if="isReadOnly" type="warning" @click="withdrawDocument">撤回为草稿</el-button>
+        <el-button v-if="!isReadOnly" type="primary" @click="submitDocument">提交</el-button>
       </div>
     </footer>
 
@@ -625,7 +639,7 @@ const {
 .document-header-inner {
   position: relative;
   display: flex;
-  width: 1200px;
+  width: 1600px;
   height: 100%;
   align-items: center;
   justify-content: center;
@@ -641,10 +655,32 @@ const {
 }
 
 .submit-date {
-  position: absolute;
-  right: 0;
   color: #374151;
   font-size: 14px;
+}
+
+.header-meta {
+  position: absolute;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.save-status {
+  font-size: 14px;
+}
+
+.save-status.saved {
+  color: #52c41a;
+}
+
+.save-status.saving {
+  color: #909399;
+}
+
+.save-status.error {
+  color: #f56c6c;
 }
 
 .document-body {
@@ -711,6 +747,10 @@ const {
 
 .basic-form :deep(.el-form-item) {
   margin-bottom: 0;
+}
+
+.basic-form :deep(.el-form-item__label) {
+  white-space: nowrap;
 }
 
 .basic-form :deep(.el-input),
