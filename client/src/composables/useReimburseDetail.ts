@@ -1,4 +1,4 @@
-import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -12,6 +12,8 @@ const {
   getReimburseDetail,
   refreshAllowances,
   submitReimburseForm,
+  saveReimburseForm,
+  withdrawReimburseForm,
   loadMasterData,
   createBlankReimburseForm,
   businessTypeOptions,
@@ -24,15 +26,45 @@ const {
 } = useReimburseStore();
 const detail = reactive<ReimburseForm>(createBlankReimburseForm());
 
+type AutoSaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+
+const saveStatus = ref<AutoSaveStatus>('idle');
+const isInitialized = ref(false);
+const isAutoSaving = ref(false);
+
 const clonePlain = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
+
+const resolveAllowanceRouteText = (allowance: AllowanceRecord): string => {
+  if (allowance.routeText?.trim()) {
+    return allowance.routeText;
+  }
+
+  const trip = detail.trips.find((item) => item.id === allowance.tripId);
+  if (!trip) {
+    return '';
+  }
+
+  const startCity = cityOptions.value.find((item) => item.cityNo === trip.departureCityNo);
+  const endCity = cityOptions.value.find((item) => item.cityNo === trip.arrivalCityNo);
+  return `${startCity?.cityName ?? ''}-${endCity?.cityName ?? ''}`;
+};
+
+const syncAllowanceRouteText = () => {
+  detail.allowances.forEach((allowance) => {
+    allowance.routeText = resolveAllowanceRouteText(allowance);
+  });
+};
 
 const applyDetail = (nextDetail: ReimburseForm) => {
   Object.assign(detail, clonePlain(nextDetail));
+  syncAllowanceRouteText();
 };
 
 onMounted(async () => {
   await loadMasterData();
   applyDetail(await getReimburseDetail(String(route.params.id ?? 'new')));
+  await nextTick();
+  isInitialized.value = true;
 });
 
 const expanded = reactive({
@@ -54,6 +86,9 @@ interface TripFormState {
   dateRange: [string, string] | [];
   description: string;
 }
+
+const isReadOnly = computed(() => detail.documentStatusCode === 2 || detail.documentStatusCode === 3);
+const isVoided = computed(() => detail.documentStatusCode === 2);
 
 const tripDialog = reactive({
   visible: false,
@@ -149,6 +184,7 @@ const allowanceRows = computed(() =>
       index: index + 1,
       travelerText: traveler?.reimburserName ?? '',
       dateText: `${allowance.startDate} 至 ${allowance.endDate}`,
+      routeText: resolveAllowanceRouteText(allowance),
       cityText: city?.cityName ?? '',
     };
   }),
@@ -805,6 +841,71 @@ const validateBeforeSubmit = (): string[] => {
   return Array.from(new Set(errors));
 };
 
+let autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
+
+const performAutoSave = async () => {
+  if (!isInitialized.value || isAutoSaving.value || (detail.documentStatusCode !== 0 && detail.documentStatusCode !== 1)) {
+    return;
+  }
+
+  isAutoSaving.value = true;
+  saveStatus.value = 'saving';
+
+  const payload = clonePlain(detail);
+  if (payload.documentStatusCode === 1 && validateBeforeSubmit().length > 0) {
+    payload.documentStatusCode = 0;
+  }
+
+  try {
+    const id = await saveReimburseForm(payload);
+    if (id) {
+      if (!detail.id) {
+        detail.id = id;
+        if (route.params.id === 'new') {
+          await router.replace(`/reimburse/${id}`);
+        }
+      }
+      detail.documentStatusCode = payload.documentStatusCode;
+    }
+    saveStatus.value = 'saved';
+  } catch {
+    saveStatus.value = 'error';
+  } finally {
+    isAutoSaving.value = false;
+  }
+};
+
+const scheduleAutoSave = () => {
+  if (!isInitialized.value) {
+    return;
+  }
+
+  if (autoSaveTimer) {
+    clearTimeout(autoSaveTimer);
+  }
+
+  autoSaveTimer = setTimeout(() => {
+    void performAutoSave();
+  }, 800);
+};
+
+watch(
+  () => ({
+    title: detail.title,
+    reason: detail.reason,
+    reimburserId: detail.reimburserId,
+    departmentId: detail.departmentId,
+    companyId: detail.companyId,
+    businessTypeId: detail.businessTypeId,
+    remark: detail.remark,
+    trips: detail.trips,
+    allowances: detail.allowances,
+    allocations: detail.allocations,
+  }),
+  scheduleAutoSave,
+  { deep: true },
+);
+
 const closeDocument = async () => {
   try {
     await ElMessageBox.confirm('确认关闭当前页面?', '提示', {
@@ -817,6 +918,22 @@ const closeDocument = async () => {
   }
 
   router.push('/reimburse');
+};
+
+const withdrawDocument = async () => {
+  try {
+    await ElMessageBox.confirm('确认将该报销单撤回为草稿状态？撤回后可重新编辑。', '撤回确认', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    });
+  } catch {
+    return;
+  }
+
+  await withdrawReimburseForm(detail.id);
+  detail.documentStatusCode = 0;
+  ElMessage.success('已撤回为草稿');
 };
 
 const submitDocument = async () => {
@@ -841,6 +958,9 @@ const submitDocument = async () => {
 
 return {
   detail,
+  saveStatus,
+  isReadOnly,
+  isVoided,
   expanded,
   tripDialog,
   tripFormRef,
@@ -893,6 +1013,7 @@ return {
   saveTrip,
   deleteTrip,
   closeDocument,
+  withdrawDocument,
   submitDocument,
   businessTypeTreeOptions,
   cityOptions,

@@ -4,10 +4,14 @@ import { ElMessage } from 'element-plus';
 import {
   fetchMasterData,
   fetchReimbursementDetail,
+  deleteReimbursement,
   fetchReimbursementPage,
   previewSubsidy,
+  pushReimbursement,
+  saveReimbursement,
   submitReimbursement,
   voidReimbursement,
+  withdrawReimbursement,
   type MasterDataResponse,
 } from '@/api/reimbursement';
 import type { AllowanceCalendarDay, AllowanceItemType, AllowanceRecord, BusinessTypeOption, BusinessTypeTreeNode, CityOption, ProjectOption, ReimCompanyOption, ReimDepartmentOption, ReimburseForm, ReimburseListItem, ReimburseQuery, ReimburserOption, TripRecord } from '@/types/reimburse';
@@ -314,11 +318,47 @@ const submitReimburseForm = async (form: ReimburseForm) => {
   }
 };
 
+const saveReimburseForm = async (form: ReimburseForm) => {
+  try {
+    return await saveReimbursement(form);
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '报销单保存失败');
+    throw error;
+  }
+};
+
 const voidReimburseForm = async (id: string) => {
   try {
     await voidReimbursement(id);
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : '报销单作废失败');
+    throw error;
+  }
+};
+
+const deleteReimburseForm = async (id: string) => {
+  try {
+    await deleteReimbursement(id);
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '报销单删除失败');
+    throw error;
+  }
+};
+
+const pushReimburseForm = async (id: string) => {
+  try {
+    await pushReimbursement(id);
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '手工推送失败');
+    throw error;
+  }
+};
+
+const withdrawReimburseForm = async (id: string) => {
+  try {
+    await withdrawReimbursement(id);
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '撤回失败');
     throw error;
   }
 };
@@ -342,5 +382,9 @@ export const useReimburseStore = () => ({
   getReimburseDetail,
   refreshAllowances,
   submitReimburseForm,
+  saveReimburseForm,
   voidReimburseForm,
+  deleteReimburseForm,
+  pushReimburseForm,
+  withdrawReimburseForm,
 });

@@ -72,8 +72,9 @@ interface ReimbursementDTO {
 
 const statusTextMap: Record<DocumentStatusCode, string> = {
   0: '草稿',
-  1: '已提交',
+  1: '已完成',
   2: '已作废',
+  3: '已提交',
 };
 
 const normalizeStatus = (statusCode?: DocumentStatusCode): DocumentStatusCode => statusCode ?? 0;
@@ -261,6 +262,21 @@ export const submitReimbursement = (form: ReimburseForm) =>
 
 export const voidReimbursement = (id: string) =>
   request<null>(`/void/${id}`, {
+    method: 'POST',
+  });
+
+export const deleteReimbursement = (id: string) =>
+  request<null>(`/delete/${id}`, {
+    method: 'POST',
+  });
+
+export const pushReimbursement = (id: string) =>
+  request<null>(`/push/${id}`, {
+    method: 'POST',
+  });
+
+export const withdrawReimbursement = (id: string) =>
+  request<null>(`/withdraw/${id}`, {
     method: 'POST',
   });
 
